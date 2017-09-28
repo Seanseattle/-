@@ -13,10 +13,12 @@ from sklearn import tree
 def readFile():
     with open("matchDataTrain.csv") as csvFile:
         spamreader = pd.read_csv(csvFile, sep=',')
-        data_list = spamreader.columns.tolist()
-        print(spamreader.dtypes)
-        print(data_list)
-        train_data = np.empty_like(spamreader)
+        # data_list = spamreader.columns.tolist()
+        # print(spamreader.dtypes)
+        # print(data_list)
+        # train_data = np.empty_like(spamreader)
+        train_data = np.zeros(shape=(spamreader.__len__(),9))
+        teamList = readTeamData("teamData.csv")
         i = 0
         while (i < spamreader.__len__()):
             string = spamreader['客场本场前战绩'][i]
@@ -50,15 +52,29 @@ def readFile():
                 else:
                     split_string += char
             b = int(split_string)
-            # train_data[i][4] = int(b/(a+b)*10)
-            if a>b:
-                train_data[i][4] = 1
-            else:
-                train_data[i][4] = 0
-            i = i + 1
+            train_data[i][8] = int(b/(a+b)*10)
 
-        x, y = train_data[0:6000, 0:4].tolist(), train_data[0:6000,4].tolist()
-        x_test, y_test = train_data[6000:, 0:4].tolist(), train_data[6000:, 4].tolist()
+            Ateam_Name = int(spamreader["客场队名"][i])
+            Bteam_Name = int(spamreader["主场队名"][i])
+            train_data[i][4] = teamList[Ateam_Name][0]
+            train_data[i][5] = teamList[Ateam_Name][1]
+            train_data[i][6] = teamList[Bteam_Name][0]
+            train_data[i][7] = teamList[Bteam_Name][1]
+
+            # if a>b:
+            #     train_data[i][8] = 1
+            # else:
+            #     train_data[i][8] = 0
+            i = i + 1
+        print(train_data[6])
+
+        start1 = 0
+        end1 = 6000
+        start2 = 0
+        end2 = 8
+
+        x, y = train_data[start1:end1,start2:end2].tolist(), train_data[start1:end1,end2].tolist()
+        x_test, y_test = train_data[end1:,start2:end2].tolist(), train_data[end1:, end2].tolist()
 
         # gbn = GaussianNB()
         # gbn = BernoulliNB()
@@ -83,33 +99,53 @@ def readTeamData(file):
     with open(file) as teamData:
         personData = pd.read_csv(teamData, sep=',')
         personList = personData.columns.tolist()
-        print(personList)
         teamList = []
-        templist = [0,0]
+        temp = [0, 0]
         i = 0
         count = 0
-        print(personList)
-        while(i<personData.__len__()-1):
-            if (personData['队名'][i] != personData['队名'][i+1]):
-                templist[0] += personData['投篮命中率'][i]
-                templist[0] = templist[0]/count
-                templist[1] += personData['投篮出手次数'][i]
-                templist[1] = templist[1] / count
-                teamList.append(templist)
-                templist[0] = 0
-                teamList[1] = 0
+        print(type(personData))
+        while(i<personData.__len__()):
+            if(i == personData.__len__()-1 ):
+                if (personData["投篮出手次数"][i] != 0.0):
+                    temp[0] += float(personData['投篮命中率'][i].strip("%")) / 100
+                    temp[0] = temp[0] / (count + 1)
+                    count = 0
+                    temp[1] += float(personData['投篮出手次数'][i])
+                    teamList.append([temp[0], temp[1]])
+                    break
+                else:
+                    count = 0
+            if (personData['队名'][i] == personData['队名'][i+1]):
+                if(personData['投篮出手次数'][i] != 0.0):
+                    temp[0] += float(personData['投篮命中率'][i].strip("%"))/100
+                    temp[1] += float(personData['投篮出手次数'][i])
+                count += 1
             else:
-                templist[0] += personData['投篮命中率'][i]
-                templist[1] += personData['投篮出手次数'][i]
+                if(personData["投篮出手次数"][i] != 0.0):
+                    temp[0] += float(personData['投篮命中率'][i].strip("%"))/100
+                    temp[0] = temp[0] / (count+1)
+                    count = 0
+                    temp[1] += float(personData['投篮出手次数'][i])
+                else:
+                    count = 0
+
+                teamList.append([temp[0],temp[1]])
+                temp[0] = 0
+                temp[1] = 0
             i += 1
-        print(teamList)
+
+        return teamList
 
 
 
 
 def train_model(train_data):
-    x,y = train_data[0:6000][0:3],train_data[0:6000][4]
-    x_test,y_test= train_data[6000:][0:3], train_data[6000:][4]
+    start1 = 0
+    end1 = 6000
+    start2 = 0
+    end2 = 7
+    x,y = train_data[start1:end1][start2:end2],train_data[start1:end1][8]
+    x_test,y_test= train_data[end1:][start2:end2], train_data[start1:][8]
     print("start train")
     knnModel = KNeighborsClassifier().fit(x,y)
     print("start test")
